@@ -31,12 +31,28 @@
 .Box {
   position: absolute;
   top: 0;
-  /* border: 1px solid red; */
   background-color: #9b9ead;
-  width: 150px;
-  height: 150px;
   cursor: move;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.Button {
+  cursor: pointer;
+  margin: 0.5rem;
+  margin-bottom: 0;
+  color: #000;
+  text-align: center;
+  padding: 0.3rem;
+  background-color: #fff;
+}
+
+.Table {
+  width: 100%;
+}
+
+.Table tr {
+  text-align: center;
+  margin: 1rem;
 }
