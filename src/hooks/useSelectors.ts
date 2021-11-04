@@ -3,17 +3,9 @@ import { State } from "./types";
 
 export const useSelectors = (state: State) => ({
   position: (index: number): { x: number; y: number } => {
-    const result = useCallback(() => {
-      return state.positions[index];
-    }, [state.positions[index]]);
-
-    return result();
+    return state.positions[index];
   },
   size: (index: number): { width: number; height: number } => {
-    const result = useCallback(() => {
-      return state.sizes[index];
-    }, [state.sizes[index]]);
-
-    return result();
+    return state.sizes[index];
   },
 });
