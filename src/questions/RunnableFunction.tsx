@@ -2,16 +2,18 @@ import SyntaxHighlighter from "react-syntax-highlighter";
 import { dark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 export default function RunnableFunction() {
-  const sum = (num1: number, num2: number) => {
-    return num1 + num2;
-  };
-
-  const sum2 = (num1: number) => (num2: number) => {
-    return num1 + num2;
-  };
+  function sum(
+    num1: number,
+    num2?: number
+  ): ((num: number) => number) | number | any {
+    if (num2) return num1 + num2;
+    return (num: number) => {
+      return num + num1;
+    };
+  }
 
   console.log(sum(2, 5));
-  console.log(sum2(2)(5));
+  console.log(sum(2)(5));
 
   return (
     <div className="max-w-lg mx-auto">

@@ -1,56 +1,8 @@
-import { useRef, useCallback } from "react";
-import Draggable, { DraggableProps } from "react-draggable";
-import create from "zustand";
+import { useRef, useContext, useCallback, ChangeEvent, useMemo } from "react";
+import Draggable, { DraggableEvent, DraggableProps } from "react-draggable";
 import styles from "./index.module.css";
-import shallow from "zustand/shallow";
 import React from "react";
-
-const BOXES_COUNT = 10;
-const BOXES_PER_ROW = 5;
-
-type Store = {
-  positions: Array<{ x: number; y: number }>;
-  sizes: Array<{ width: number; height: number }>;
-  changePosition: (index: number, position: { x: number; y: number }) => void;
-  addBox: () => void;
-  removeBox: (index: number) => void;
-  resizeBox: (index: number, size: { width: number; height: number }) => void;
-};
-
-export const useStore = create<Store>((set) => ({
-  positions: Array.from({ length: BOXES_COUNT }).map((_, index) => ({
-    x: 100 + (150 + 100) * (index % BOXES_PER_ROW),
-    y: 20 + (150 + 50) * Math.floor(index / BOXES_PER_ROW),
-  })),
-  sizes: Array.from({ length: BOXES_COUNT }).map((_, index) => ({
-    width: 150,
-    height: 150,
-  })),
-  changePosition: (index: number, position: { x: number; y: number }) =>
-    set(({ positions }) => {
-      return {
-        positions: positions.map((value, i) => {
-          return i !== index ? value : position;
-        }),
-      };
-    }),
-  addBox: () =>
-    set(({ positions, sizes }) => ({
-      positions: [...positions, { x: 0, y: 0 }],
-      sizes: [...sizes, { width: 150, height: 150 }],
-    })),
-  removeBox: (index: number) =>
-    set(({ positions, sizes }) => ({
-      positions: positions.filter((_, i) => index !== i),
-      sizes: sizes.filter((_, i) => index !== i),
-    })),
-  resizeBox: (index: number, size: { width: number; height: number }) =>
-    set(({ sizes }) => ({
-      sizes: sizes.map((value, i) => {
-        return i !== index ? value : size;
-      }),
-    })),
-}));
+import { Context } from "../../components/Provider";
 
 const BoxItem = React.memo(function BoxItem({
   index,
@@ -61,34 +13,33 @@ const BoxItem = React.memo(function BoxItem({
   text: string | number;
 }) {
   const nodeRef = useRef(null);
-  const changePosition = useStore(({ changePosition }) => changePosition);
-  const position = useStore(
-    useCallback(({ positions }) => positions[index], [index])
-  );
-  const { width, height } = useStore(
-    useCallback(
-      ({ sizes }) => ({
-        ...sizes[index],
-      }),
-      [index]
-    ),
-    shallow
-  );
+
+  const {
+    state: { positions, sizes },
+    selectors: { position, size },
+    actions: { changePosition },
+  } = useContext(Context);
+
+  // const p = useMemo(() => position(index), [index]);
+  // const { width, height } = useMemo(() => size(index), [index]);
+  const p = position(index);
+  const { width, height } = size(index);
+
+  const style = {
+    width: `${width}px`,
+    height: `${height}px`,
+  };
+
+  const onDragAction = (
+    _: DraggableEvent,
+    { x, y }: { x: number; y: number }
+  ) => {
+    changePosition(index, { x, y });
+  };
 
   return (
-    <Draggable
-      nodeRef={nodeRef}
-      position={position}
-      onDrag={(_, { x, y }) => {
-        changePosition(index, { x, y });
-      }}
-      {...rest}
-    >
-      <div
-        style={{ width: `${width}px`, height: `${height}px` }}
-        className={styles.Box}
-        ref={nodeRef}
-      >
+    <Draggable nodeRef={nodeRef} position={p} onDrag={onDragAction} {...rest}>
+      <div style={style} className={styles.Box} ref={nodeRef}>
         Box {text}
       </div>
     </Draggable>
@@ -108,14 +59,34 @@ const PositionItem = React.memo(function PositionItem({
   height: number;
   index: number;
 }) {
-  const { removeBox, resizeBox, changePosition } = useStore(
-    ({ resizeBox, removeBox, changePosition }) => ({
-      changePosition,
-      removeBox,
-      resizeBox,
-    }),
-    shallow
-  );
+  const {
+    actions: { remove, resize, changePosition },
+  } = useContext(Context);
+
+  const onRemoveItem = () => remove(index);
+  const onChangePositionX = ({
+    target: { value },
+  }: ChangeEvent<HTMLInputElement>) => {
+    changePosition(index, { x: parseInt(value) | 0, y });
+  };
+  const onChangePositionY = ({
+    target: { value },
+  }: ChangeEvent<HTMLInputElement>) => {
+    changePosition(index, { x, y: parseInt(value) | 0 });
+  };
+  const onResizeWidth = ({
+    target: { value },
+  }: ChangeEvent<HTMLInputElement>) => {
+    resize(index, { width: parseInt(value) | 0, height });
+  };
+  const onResizeHeight = ({
+    target: { value },
+  }: ChangeEvent<HTMLInputElement>) => {
+    resize(index, {
+      width,
+      height: parseInt(value) | 0,
+    });
+  };
 
   return (
     <li
@@ -129,7 +100,7 @@ const PositionItem = React.memo(function PositionItem({
       <table className={styles.Table}>
         <tr>
           <td> Box {index + 1} </td>
-          <td className={styles.Button} onClick={() => removeBox(index)}>
+          <td className={styles.Button} onClick={onRemoveItem}>
             Remove
           </td>
         </tr>
@@ -143,9 +114,7 @@ const PositionItem = React.memo(function PositionItem({
               type="text"
               size={4}
               value={x}
-              onChange={({ target: { value } }) =>
-                changePosition(index, { x: parseInt(value) | 0, y })
-              }
+              onChange={onChangePositionX}
             />
           </td>
           <td>
@@ -153,9 +122,7 @@ const PositionItem = React.memo(function PositionItem({
               type="text"
               size={4}
               value={y}
-              onChange={({ target: { value } }) =>
-                changePosition(index, { x, y: parseInt(value) | 0 })
-              }
+              onChange={onChangePositionY}
             />
           </td>
         </tr>
@@ -169,9 +136,7 @@ const PositionItem = React.memo(function PositionItem({
               type="text"
               size={4}
               value={width}
-              onChange={({ target: { value } }) =>
-                resizeBox(index, { width: parseInt(value) | 0, height })
-              }
+              onChange={onResizeWidth}
             />
           </td>
           <td>
@@ -179,12 +144,7 @@ const PositionItem = React.memo(function PositionItem({
               type="text"
               size={4}
               value={height}
-              onChange={({ target: { value } }) =>
-                resizeBox(index, {
-                  width,
-                  height: parseInt(value) | 0,
-                })
-              }
+              onChange={onResizeHeight}
             />
           </td>
         </tr>
@@ -194,20 +154,15 @@ const PositionItem = React.memo(function PositionItem({
 });
 
 function Content() {
-  const { addBox } = useStore(
-    ({ addBox }) => ({
-      addBox,
-    }),
-    shallow
-  );
-
-  const sizes = useStore(({ sizes }) => sizes, shallow);
-  const positions = useStore(({ positions }) => positions, shallow);
+  const {
+    actions: { add },
+    state: { positions, sizes },
+  } = useContext(Context);
 
   return (
     <div className={styles.Content}>
       <div className={styles.Slider}>
-        <div className={styles.Button} onClick={() => addBox()}>
+        <div className={styles.Button} onClick={() => add()}>
           Add Box
         </div>
         <ul className="p-4">
@@ -241,4 +196,4 @@ function Content() {
   );
 }
 
-export default Content;
+export default React.memo(Content);

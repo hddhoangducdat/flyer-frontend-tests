@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {} from "react";
 
 // DO NOT MODIFY THIS
 const mockDataReturn = Array.from({ length: 100_000 }).map((_, index) => {
@@ -21,29 +22,63 @@ const toMockDataReturnMap = (() => {
   return dataMap;
 })();
 
-const ITEM_RENDERS = 100;
+interface VirtualizedListProps {
+  numItems: number;
+  itemHeight: number;
+  renderItem: ({ index, style }: any) => void;
+  windowHeight: number;
+}
+
+const VirtualizedList: React.FC<VirtualizedListProps> = ({
+  itemHeight,
+  numItems,
+  renderItem,
+  windowHeight,
+}) => {
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const innerHeight = numItems * itemHeight;
+  const startIndex = Math.floor(scrollTop / itemHeight);
+  const endIndex = Math.min(
+    numItems - 1,
+    Math.floor((scrollTop + windowHeight) / itemHeight)
+  );
+  const items = [];
+
+  for (let i = startIndex; i <= endIndex; i++) {
+    items.push(
+      renderItem({
+        index: i,
+        style: {
+          position: "absolute",
+          top: `${i * itemHeight}px`,
+          width: "100%",
+        },
+      })
+    );
+  }
+
+  return (
+    <div
+      className="overflow-y-scroll max-h-96 border"
+      onScroll={({ currentTarget: { scrollTop } }) => setScrollTop(scrollTop)}
+    >
+      <div style={{ position: "relative", height: `${innerHeight}px` }}>
+        {items}
+      </div>
+    </div>
+  );
+};
 
 export default function OptimizeThisRender() {
   const [numberToRender, setNumberToRender] = useState(100);
-  const [offSet, setOffSet] = useState(0);
-  const [scroll, setScroll] = useState(0);
-  const listRef = useRef<HTMLUListElement | null>(null);
-
-  useEffect(() => {}, [offSet]);
+  const [items, setItems] = useState<any[]>(
+    mockIdsReturns.slice(0, numberToRender)
+  );
 
   useEffect(() => {
-    if (listRef.current) {
-      const list = listRef.current;
-      // scrollTop not equal to scrollHeight
-      if (list.scrollTop === 5218 && offSet + ITEM_RENDERS !== numberToRender) {
-        setOffSet(offSet + ITEM_RENDERS);
-        list.scrollTop = 1;
-      } else if (list.scrollTop === 0 && offSet !== 0) {
-        setOffSet(offSet - ITEM_RENDERS);
-        list.scrollTop = 5217;
-      }
-    }
-  }, [scroll]);
+    setItems(mockIdsReturns.slice(0, numberToRender));
+  }, [numberToRender]);
 
   return (
     <div className="max-w-lg mx-auto">
@@ -65,23 +100,22 @@ export default function OptimizeThisRender() {
           <option value={100_000}>100.000</option>
         </select>
       </div>
-      <ul
-        ref={listRef}
-        className="overflow-y-scroll max-h-96 border"
-        onScroll={() => {
-          if (listRef.current) setScroll(listRef.current?.scrollTop);
-        }}
-      >
-        {mockIdsReturns.slice(offSet, offSet + ITEM_RENDERS).map((id) => {
+
+      <VirtualizedList
+        numItems={items.length}
+        itemHeight={55}
+        windowHeight={400}
+        renderItem={({ index, style }: any) => {
+          const id = items[index];
           return (
-            <li className="p-1" key={id}>
+            <div key={id} className="p-1" style={style}>
               {toMockDataReturnMap[id]
                 ? id + " - " + toMockDataReturnMap[id]
-                : "Not found!"}
-            </li>
+                : "Not found"}
+            </div>
           );
-        })}
-      </ul>
+        }}
+      />
     </div>
   );
 }
